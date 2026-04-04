@@ -6,7 +6,7 @@ async function loadOrders() {
     <div class="page-header">
       <div>
         <div class="page-title">Orders</div>
-        <div class="page-subtitle">Track purchases, sales, and stock adjustments</div>
+        <div class="page-subtitle">Stock updates only when an order is marked <strong>Completed</strong></div>
       </div>
       <div class="page-actions">
         <button class="btn" onclick="exportOrders()">
@@ -20,10 +20,26 @@ async function loadOrders() {
       </div>
     </div>
     <div class="page-content">
+
+      <!-- Stock flow info banner -->
+      <div style="
+        display:flex;align-items:flex-start;gap:12px;
+        background:var(--info-soft);border:1px solid #93c5fd;
+        border-radius:var(--radius);padding:12px 16px;
+        margin-bottom:1.25rem;font-size:13px;color:var(--info);
+      ">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" style="width:16px;height:16px;flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="8"/><circle cx="8" cy="11" r=".5" fill="currentColor"/></svg>
+        <div>
+          <strong>Stock update rule:</strong>
+          Inventory quantities are <strong>only</strong> added or subtracted when an order status changes to
+          <strong>Completed</strong>. Pending and Processing orders do not affect stock.
+          Cancelling a completed order automatically reverses the stock change.
+        </div>
+      </div>
+
       <div class="stats-grid" id="ord-stats" style="margin-bottom:1.25rem">
         ${[1,2,3,4].map(() => `
           <div class="stat-card" style="padding:1rem">
-            <div class="stat-label" style="background:var(--border);border-radius:4px;height:12px;width:60%;margin-bottom:8px"></div>
             <div class="stat-value" style="font-size:20px;color:var(--text-3)">—</div>
           </div>`).join('')}
       </div>
@@ -49,7 +65,7 @@ async function loadOrders() {
               <div class="tab active"      onclick="ordStatusFilter('')">All</div>
               <div class="tab"             onclick="ordStatusFilter('pending')">Pending</div>
               <div class="tab"             onclick="ordStatusFilter('processing')">Processing</div>
-              <div class="tab"             onclick="ordStatusFilter('completed')">Done</div>
+              <div class="tab"             onclick="ordStatusFilter('completed')">Completed</div>
               <div class="tab"             onclick="ordStatusFilter('cancelled')">Cancelled</div>
             </div>
           </div>
@@ -61,17 +77,15 @@ async function loadOrders() {
       </div>
     </div>`;
 
-  // Preload products for the "new order" modal
   try {
     const { products } = await api.getProducts({ limit: 999, sort: 'name' });
     ordState.products = products;
   } catch {}
 
-  // Load table and stats in parallel
   await Promise.all([fetchOrders(), fetchOrderStats()]);
 }
 
-// ─── STATS ───────────────────────────────────────────────────────────────────
+// ─── STATS ────────────────────────────────────────────────────────────────────
 async function fetchOrderStats() {
   try {
     const [all, pending, completed, sales] = await Promise.all([
@@ -86,35 +100,27 @@ async function fetchOrderStats() {
     if (!el) return;
     el.innerHTML = `
       <div class="stat-card" style="--card-color:var(--accent);--card-color-soft:var(--accent-soft)">
-        <div class="stat-icon">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4h12M2 8h8M2 12h5"/></svg>
-        </div>
+        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4h12M2 8h8M2 12h5"/></svg></div>
         <div class="stat-label">Total Orders</div>
         <div class="stat-value">${(all.total || 0).toLocaleString()}</div>
       </div>
       <div class="stat-card" style="--card-color:var(--warning);--card-color-soft:var(--warning-soft)">
-        <div class="stat-icon">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="6"/><path d="M8 5v4l2 2"/></svg>
-        </div>
+        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="6"/><path d="M8 5v4l2 2"/></svg></div>
         <div class="stat-label">Pending</div>
         <div class="stat-value" style="color:var(--warning)">${pending.total || 0}</div>
-        <div class="stat-sub warn">Awaiting action</div>
+        <div class="stat-sub warn">No stock change yet</div>
       </div>
       <div class="stat-card" style="--card-color:var(--success);--card-color-soft:var(--success-soft)">
-        <div class="stat-icon">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 8l4 4 8-8"/></svg>
-        </div>
+        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 8l4 4 8-8"/></svg></div>
         <div class="stat-label">Completed</div>
         <div class="stat-value" style="color:var(--success)">${completed.total || 0}</div>
-        <div class="stat-sub up">Fulfilled orders</div>
+        <div class="stat-sub up">Stock applied</div>
       </div>
       <div class="stat-card" style="--card-color:var(--purple);--card-color-soft:var(--purple-soft)">
-        <div class="stat-icon">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 1l2 5h5l-4 3 1.5 5L8 11l-4.5 3L5 9 1 6h5z"/></svg>
-        </div>
+        <div class="stat-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 1l2 5h5l-4 3 1.5 5L8 11l-4.5 3L5 9 1 6h5z"/></svg></div>
         <div class="stat-label">Sales Revenue</div>
         <div class="stat-value" style="font-size:20px">${fmtCurrency(salesTotal)}</div>
-        <div class="stat-sub up">Completed sales</div>
+        <div class="stat-sub up">From completed sales</div>
       </div>`;
   } catch {}
 }
@@ -123,45 +129,33 @@ async function fetchOrderStats() {
 let ordSearchTimer;
 function ordSearch(val) {
   clearTimeout(ordSearchTimer);
-  ordSearchTimer = setTimeout(() => {
-    ordState.search = val;
-    ordState.page   = 1;
-    fetchOrders();
-  }, 300);
+  ordSearchTimer = setTimeout(() => { ordState.search = val; ordState.page = 1; fetchOrders(); }, 300);
 }
-
 function ordTypeFilter(type) {
-  ordState.type = type;
-  ordState.page = 1;
-  document.querySelectorAll('#ord-type-tabs .tab').forEach((t, i) => {
-    t.classList.toggle('active', ['', 'purchase', 'sale', 'adjustment'][i] === type);
-  });
+  ordState.type = type; ordState.page = 1;
+  document.querySelectorAll('#ord-type-tabs .tab').forEach((t, i) =>
+    t.classList.toggle('active', ['','purchase','sale','adjustment'][i] === type));
   fetchOrders();
 }
-
 function ordStatusFilter(status) {
-  ordState.status = status;
-  ordState.page   = 1;
-  document.querySelectorAll('#ord-status-tabs .tab').forEach((t, i) => {
-    t.classList.toggle('active', ['', 'pending', 'processing', 'completed', 'cancelled'][i] === status);
-  });
+  ordState.status = status; ordState.page = 1;
+  document.querySelectorAll('#ord-status-tabs .tab').forEach((t, i) =>
+    t.classList.toggle('active', ['','pending','processing','completed','cancelled'][i] === status));
   fetchOrders();
 }
 
-// ─── FETCH ───────────────────────────────────────────────────────────────────
+// ─── FETCH ────────────────────────────────────────────────────────────────────
 async function fetchOrders() {
   const wrap = document.getElementById('ord-table-wrap');
   if (!wrap) return;
   wrap.innerHTML = `<div style="padding:2.5rem;text-align:center;color:var(--text-3)">
     <svg viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" stroke="var(--accent)" style="width:30px;height:30px;display:block;margin:0 auto 8px"><g fill="none"><g transform="translate(1 1)" stroke-width="2"><circle stroke-opacity=".25" cx="18" cy="18" r="18"/><path d="M36 18c0-9.94-8.06-18-18-18"><animateTransform attributeName="transform" type="rotate" from="0 18 18" to="360 18 18" dur="0.8s" repeatCount="indefinite"/></path></g></g></svg>
     Loading orders…</div>`;
-
   try {
     const params = { page: ordState.page, limit: 15 };
     if (ordState.type)   params.type   = ordState.type;
     if (ordState.status) params.status = ordState.status;
     if (ordState.search) params.search = ordState.search;
-
     const { orders, total, page, pages } = await api.getOrders(params);
     renderOrdersTable(orders);
     renderOrdPagination(total, page, pages);
@@ -171,14 +165,14 @@ async function fetchOrders() {
   }
 }
 
-// ─── TABLE ───────────────────────────────────────────────────────────────────
+// ─── TABLE ────────────────────────────────────────────────────────────────────
 function renderOrdersTable(orders) {
   const wrap = document.getElementById('ord-table-wrap');
   if (!orders || orders.length === 0) {
     wrap.innerHTML = `<div class="empty-state">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
       <p>No orders found</p>
-      <div class="empty-hint">Try adjusting your filters, or create a new order</div>
+      <div class="empty-hint">Try adjusting your filters or create a new order</div>
       <button class="btn btn-primary" style="margin-top:12px" onclick="openOrderModal()">+ New Order</button>
     </div>`;
     return;
@@ -187,16 +181,22 @@ function renderOrdersTable(orders) {
   wrap.innerHTML = `<table>
     <thead><tr>
       <th>Order #</th><th>Type</th><th>Party</th>
-      <th>Items</th><th>Total</th><th>Status</th><th>Date</th><th style="text-align:center">Actions</th>
+      <th>Items</th><th>Total</th><th>Stock</th><th>Status</th><th>Date</th><th style="text-align:center">Actions</th>
     </tr></thead>
     <tbody>
       ${orders.map(o => {
-        const party      = o.supplier || o.customer || '—';
+        const party = o.supplier || o.customer || '—';
         const partyLabel = o.type === 'purchase'
           ? `<div class="td-sub">Supplier</div>`
-          : o.type === 'sale'
-          ? `<div class="td-sub">Customer</div>`
-          : '';
+          : o.type === 'sale' ? `<div class="td-sub">Customer</div>` : '';
+
+        // Stock indicator pill
+        const stockPill = o.stockApplied
+          ? `<span class="badge badge-success" title="Stock has been applied">✓ Applied</span>`
+          : o.status === 'cancelled'
+          ? `<span class="badge badge-gray">Reverted</span>`
+          : `<span class="badge badge-gray" title="Stock will update on Completed">Pending</span>`;
+
         return `<tr>
           <td>
             <div class="td-name" style="font-family:'DM Mono',monospace;font-size:12px">${escapeHtml(o.orderNumber)}</div>
@@ -212,6 +212,7 @@ function renderOrdersTable(orders) {
             <span style="color:var(--text-3);font-size:11px"> item${o.items.length !== 1 ? 's' : ''}</span>
           </td>
           <td style="font-weight:700;font-size:14px">${fmtCurrency(o.totalAmount)}</td>
+          <td>${stockPill}</td>
           <td>${orderStatusBadge(o.status)}</td>
           <td style="color:var(--text-2);font-size:12px;white-space:nowrap">${fmtDate(o.createdAt)}</td>
           <td>
@@ -220,15 +221,22 @@ function renderOrdersTable(orders) {
               ${o.status === 'pending' ? `
                 <button class="btn btn-sm" style="color:var(--info);border-color:var(--info)"
                   onclick="quickUpdateStatus('${o._id}','processing')">Process</button>
-                <button class="btn btn-sm" style="color:var(--success);border-color:var(--success)"
-                  onclick="quickUpdateStatus('${o._id}','completed')">✓ Done</button>
-                <button class="btn-icon" title="Cancel" style="color:var(--danger)"
+                <button class="btn btn-sm btn-success"
+                  onclick="quickUpdateStatus('${o._id}','completed')" title="Applies stock changes">✓ Complete</button>
+                <button class="btn-icon" style="color:var(--danger)" title="Cancel (no stock change)"
                   onclick="quickUpdateStatus('${o._id}','cancelled')">
                   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
                 </button>` : ''}
               ${o.status === 'processing' ? `
                 <button class="btn btn-sm btn-success"
-                  onclick="quickUpdateStatus('${o._id}','completed')">✓ Complete</button>` : ''}
+                  onclick="quickUpdateStatus('${o._id}','completed')" title="Applies stock changes">✓ Complete</button>
+                <button class="btn-icon" style="color:var(--danger)" title="Cancel (no stock change)"
+                  onclick="quickUpdateStatus('${o._id}','cancelled')">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
+                </button>` : ''}
+              ${o.status === 'completed' ? `
+                <button class="btn btn-sm" style="color:var(--danger);border-color:var(--danger)"
+                  onclick="quickUpdateStatus('${o._id}','cancelled')" title="Reverses stock changes">Cancel & Revert</button>` : ''}
             </div>
           </td>
         </tr>`;
@@ -238,11 +246,38 @@ function renderOrdersTable(orders) {
 }
 
 async function quickUpdateStatus(id, status) {
-  if (status === 'cancelled' && !confirm('Cancel this order? This cannot be undone.')) return;
+  // Give clear confirmation messages explaining stock impact
+  const confirmMessages = {
+    cancelled: {
+      fromCompleted: 'Cancel this completed order?\n\nThis will REVERSE the stock changes that were applied when it was completed.',
+      fromOther:     'Cancel this order?\n\nNo stock changes have been applied, so nothing will be reversed.'
+    },
+    completed: 'Mark this order as Completed?\n\nThis will apply the stock changes:\n• Purchase → adds stock\n• Sale → subtracts stock'
+  };
+
+  if (status === 'cancelled') {
+    // Check if the order was completed (stock was applied) to show right message
+    try {
+      const order = await api.getOrder(id);
+      const msg   = order.stockApplied
+        ? confirmMessages.cancelled.fromCompleted
+        : confirmMessages.cancelled.fromOther;
+      if (!confirm(msg)) return;
+    } catch {
+      if (!confirm('Cancel this order?')) return;
+    }
+  } else if (status === 'completed') {
+    if (!confirm(confirmMessages.completed)) return;
+  }
+
   try {
     await api.updateOrderStatus(id, status);
-    const labels = { processing: 'marked as processing', completed: 'completed', cancelled: 'cancelled' };
-    toast(`Order ${labels[status] || status}`, 'success');
+    const labels = {
+      processing: 'Order marked as processing — stock unchanged',
+      completed:  'Order completed — stock updated!',
+      cancelled:  'Order cancelled — stock reverted if applicable'
+    };
+    toast(labels[status] || `Status updated to ${status}`, 'success');
     fetchOrders();
     fetchOrderStats();
   } catch (err) {
@@ -254,10 +289,7 @@ async function quickUpdateStatus(id, status) {
 function renderOrdPagination(total, page, pages) {
   const el = document.getElementById('ord-pagination');
   if (!el) return;
-  if (pages <= 1) {
-    el.innerHTML = `<span class="page-info">${total} order${total !== 1 ? 's' : ''}</span>`;
-    return;
-  }
+  if (pages <= 1) { el.innerHTML = `<span class="page-info">${total} order${total !== 1 ? 's' : ''}</span>`; return; }
   let btns = '';
   for (let i = 1; i <= pages; i++) {
     if (i === 1 || i === pages || (i >= page - 1 && i <= page + 1)) {
@@ -279,30 +311,49 @@ function ordChangePage(p) { ordState.page = p; fetchOrders(); }
 async function viewOrder(id) {
   try {
     const o = await api.getOrder(id);
-
-    const statusSteps = ['pending', 'processing', 'completed'];
-    const currentStep = statusSteps.indexOf(o.status);
+    const statusSteps  = ['pending', 'processing', 'completed'];
+    const currentStep  = statusSteps.indexOf(o.status);
 
     const timelineHTML = o.status === 'cancelled'
       ? `<div class="order-status-bar cancelled">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="8" cy="8" r="6"/><line x1="5" y1="5" x2="11" y2="11"/><line x1="11" y1="5" x2="5" y2="11"/></svg>
-          This order was cancelled
+          This order was cancelled — stock changes have been reversed
         </div>`
       : `<div class="order-timeline">
           ${statusSteps.map((s, i) => {
             const isDone   = i < currentStep;
             const isActive = i === currentStep;
             const labels   = ['Pending', 'Processing', 'Completed'];
+            const hints    = ['No stock change', 'No stock change', 'Stock applied ✓'];
             return `<div class="timeline-step ${isDone ? 'done' : ''} ${isActive ? 'active' : ''}">
               <div class="timeline-dot">${isDone ? '✓' : i + 1}</div>
               <div class="timeline-label">${labels[i]}</div>
+              <div style="font-size:10px;color:var(--text-3);margin-top:2px">${hints[i]}</div>
             </div>`;
           }).join('')}
         </div>`;
 
+    // Stock status banner
+    const stockBanner = o.status !== 'cancelled' ? `
+      <div style="
+        display:flex;align-items:center;gap:10px;
+        padding:10px 14px;border-radius:var(--radius);margin-bottom:1rem;
+        background:${o.stockApplied ? 'var(--success-soft)' : 'var(--warning-soft)'};
+        border:1px solid ${o.stockApplied ? '#a7f3d0' : '#f5d580'};
+        font-size:13px;font-weight:500;
+        color:${o.stockApplied ? 'var(--success)' : 'var(--warning)'};
+      ">
+        ${o.stockApplied
+          ? `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;flex-shrink:0"><path d="M2 8l4 4 8-8"/></svg>
+             Stock has been applied — inventory quantities updated`
+          : `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" style="width:15px;height:15px;flex-shrink:0"><circle cx="8" cy="8" r="6"/><path d="M8 5v4l2 2"/></svg>
+             Stock not yet applied — mark as <strong>Completed</strong> to update inventory`}
+      </div>` : '';
+
     openModal(`Order ${escapeHtml(o.orderNumber)}`, `
       <div class="modal-body">
         ${timelineHTML}
+        ${stockBanner}
 
         <div class="order-info-grid">
           <div class="order-info-item">
@@ -321,18 +372,9 @@ async function viewOrder(id) {
             <div class="order-info-label">Created by</div>
             <div class="order-info-value">${escapeHtml(o.createdBy?.name || '—')}</div>
           </div>
-          ${o.supplier ? `<div class="order-info-item">
-            <div class="order-info-label">Supplier</div>
-            <div class="order-info-value">${escapeHtml(o.supplier)}</div>
-          </div>` : ''}
-          ${o.customer ? `<div class="order-info-item">
-            <div class="order-info-label">Customer</div>
-            <div class="order-info-value">${escapeHtml(o.customer)}</div>
-          </div>` : ''}
-          ${o.reference ? `<div class="order-info-item">
-            <div class="order-info-label">Reference</div>
-            <div class="order-info-value" style="font-family:'DM Mono',monospace;font-size:13px">${escapeHtml(o.reference)}</div>
-          </div>` : ''}
+          ${o.supplier ? `<div class="order-info-item"><div class="order-info-label">Supplier</div><div class="order-info-value">${escapeHtml(o.supplier)}</div></div>` : ''}
+          ${o.customer ? `<div class="order-info-item"><div class="order-info-label">Customer</div><div class="order-info-value">${escapeHtml(o.customer)}</div></div>` : ''}
+          ${o.reference ? `<div class="order-info-item"><div class="order-info-label">Reference</div><div class="order-info-value" style="font-family:'DM Mono',monospace;font-size:13px">${escapeHtml(o.reference)}</div></div>` : ''}
         </div>
 
         <div class="separator"></div>
@@ -375,10 +417,21 @@ async function viewOrder(id) {
           <button class="btn" style="color:var(--info);border-color:var(--info)"
             onclick="viewOrderAction('${o._id}','processing')">Mark Processing</button>
           <button class="btn btn-success"
-            onclick="viewOrderAction('${o._id}','completed')">✓ Complete</button>` : ''}
+            onclick="viewOrderAction('${o._id}','completed')" title="This will apply stock changes">
+            ✓ Complete &amp; Apply Stock
+          </button>` : ''}
         ${o.status === 'processing' ? `
+          <button class="btn" style="color:var(--danger);border-color:var(--danger)"
+            onclick="viewOrderAction('${o._id}','cancelled')">Cancel Order</button>
           <button class="btn btn-success"
-            onclick="viewOrderAction('${o._id}','completed')">✓ Mark Complete</button>` : ''}
+            onclick="viewOrderAction('${o._id}','completed')" title="This will apply stock changes">
+            ✓ Complete &amp; Apply Stock
+          </button>` : ''}
+        ${o.status === 'completed' ? `
+          <button class="btn" style="color:var(--danger);border-color:var(--danger)"
+            onclick="viewOrderAction('${o._id}','cancelled')" title="This reverses the stock changes">
+            Cancel &amp; Revert Stock
+          </button>` : ''}
         <button class="btn" onclick="closeModal()">Close</button>
       </div>`, true);
   } catch (err) {
@@ -387,8 +440,8 @@ async function viewOrder(id) {
 }
 
 async function viewOrderAction(id, status) {
-  await quickUpdateStatus(id, status);
   closeModal();
+  await quickUpdateStatus(id, status);
 }
 
 // ─── NEW ORDER MODAL ──────────────────────────────────────────────────────────
@@ -396,22 +449,32 @@ let orderItems = [];
 
 function openOrderModal() {
   orderItems = [];
-
   const productOptions = ordState.products.map(p =>
     `<option value="${p._id}" data-price="${p.price}" data-name="${escapeHtml(p.name)}" data-sku="${escapeHtml(p.sku)}">
-      ${escapeHtml(p.name)} — ${escapeHtml(p.sku)} (${fmtCurrency(p.price)})
+      ${escapeHtml(p.name)} — ${escapeHtml(p.sku)} (Stock: ${p.quantity}) (${fmtCurrency(p.price)})
     </option>`
   ).join('');
 
   openModal('New Order', `
     <div class="modal-body">
+
+      <!-- Stock behaviour note -->
+      <div style="
+        background:var(--info-soft);border:1px solid #93c5fd;
+        border-radius:var(--radius);padding:10px 14px;margin-bottom:1.25rem;
+        font-size:12px;color:var(--info);display:flex;align-items:flex-start;gap:8px;
+      ">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="8"/><circle cx="8" cy="11" r=".5" fill="currentColor"/></svg>
+        <span>Stock quantities will <strong>only change</strong> when this order is marked as <strong>Completed</strong>.</span>
+      </div>
+
       <div class="form-row">
         <div class="form-group">
           <label class="field-required">Order type</label>
           <select id="of-type" onchange="onOrderTypeChange()">
-            <option value="purchase">📦 Purchase — adds stock</option>
-            <option value="sale">🛒 Sale — removes stock</option>
-            <option value="adjustment">⚙️ Adjustment</option>
+            <option value="purchase">📦 Purchase — adds stock on Complete</option>
+            <option value="sale">🛒 Sale — removes stock on Complete</option>
+            <option value="adjustment">⚙️ Adjustment (manual stock only)</option>
           </select>
         </div>
         <div class="form-group">
@@ -419,7 +482,7 @@ function openOrderModal() {
           <select id="of-status">
             <option value="pending">Pending</option>
             <option value="processing">Processing</option>
-            <option value="completed">Completed</option>
+            <option value="completed">Completed (applies stock now)</option>
           </select>
         </div>
       </div>
@@ -457,7 +520,7 @@ function openOrderModal() {
 
       <div class="form-group">
         <label>Notes <span style="font-weight:400;color:var(--text-3)">(optional)</span></label>
-        <textarea id="of-notes" placeholder="Internal notes or special instructions…" style="min-height:60px"></textarea>
+        <textarea id="of-notes" placeholder="Internal notes…" style="min-height:60px"></textarea>
       </div>
     </div>
     <div class="modal-footer">
@@ -477,79 +540,55 @@ function onOrderTypeChange() {
   const label = document.getElementById('of-party-label');
   const input = document.getElementById('of-party');
   if (!label || !input) return;
-  if (type === 'sale') {
-    label.textContent  = 'Customer';
-    input.placeholder  = 'Customer name';
-  } else if (type === 'purchase') {
-    label.textContent  = 'Supplier';
-    input.placeholder  = 'Supplier / vendor name';
-  } else {
-    label.textContent  = 'Reference';
-    input.placeholder  = 'Adjustment reason or reference';
-  }
+  if (type === 'sale')          { label.textContent = 'Customer';  input.placeholder = 'Customer name'; }
+  else if (type === 'purchase') { label.textContent = 'Supplier';  input.placeholder = 'Supplier / vendor name'; }
+  else                          { label.textContent = 'Reference'; input.placeholder = 'Adjustment reason'; }
 }
 
 function addOrderItem() {
   const sel = document.getElementById('of-product');
   const qty = parseInt(document.getElementById('of-item-qty').value) || 1;
-
   if (!sel || !sel.value) { toast('Please select a product', 'error'); return; }
   if (qty < 1) { toast('Quantity must be at least 1', 'error'); return; }
 
   const productId   = sel.value;
   const selectedOpt = sel.options[sel.selectedIndex];
-  const productName = selectedOpt?.dataset.name || selectedOpt?.text || '';
+  const productName = selectedOpt?.dataset.name || '';
   const price       = parseFloat(selectedOpt?.dataset.price) || 0;
   const sku         = selectedOpt?.dataset.sku || '';
 
-  // Merge if product already in list
   const existing = orderItems.find(i => i.product === productId);
   if (existing) {
     existing.quantity   += qty;
     existing.totalPrice  = existing.quantity * existing.unitPrice;
   } else {
-    orderItems.push({
-      product:    productId,
-      name:       productName,
-      sku,
-      quantity:   qty,
-      unitPrice:  price,
-      totalPrice: qty * price
-    });
+    orderItems.push({ product: productId, name: productName, sku, quantity: qty, unitPrice: price, totalPrice: qty * price });
   }
-
   renderOrderItems();
   document.getElementById('of-item-qty').value = 1;
 }
 
-function removeOrderItem(idx) {
-  orderItems.splice(idx, 1);
-  renderOrderItems();
-}
+function removeOrderItem(idx) { orderItems.splice(idx, 1); renderOrderItems(); }
 
 function updateOrderItemQty(idx, val) {
   const qty = parseInt(val);
   if (qty > 0 && orderItems[idx]) {
     orderItems[idx].quantity   = qty;
     orderItems[idx].totalPrice = qty * orderItems[idx].unitPrice;
-    // Update subtotal display only, don't re-render whole list (preserves focus)
     const subtotalEl = document.getElementById('order-subtotal');
-    const subtotal   = orderItems.reduce((s, i) => s + i.totalPrice, 0);
-    if (subtotalEl) subtotalEl.textContent = fmtCurrency(subtotal);
+    if (subtotalEl) subtotalEl.textContent = fmtCurrency(orderItems.reduce((s, i) => s + i.totalPrice, 0));
   }
 }
 
 function renderOrderItems() {
   const el = document.getElementById('of-items-list');
   if (!el) return;
-
   if (!orderItems.length) {
     el.innerHTML = `<div style="background:var(--bg);border:1.5px dashed var(--border);border-radius:var(--radius);padding:1.5rem;text-align:center;color:var(--text-3);font-size:13px;margin-bottom:1rem">
       No products added yet — select a product above and click Add
     </div>`;
     return;
   }
-
   const subtotal = orderItems.reduce((s, i) => s + i.totalPrice, 0);
   el.innerHTML = `
     <div style="border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:1rem">
@@ -560,15 +599,13 @@ function renderOrderItems() {
             <td><div class="td-name" style="font-size:13px">${escapeHtml(item.name)}</div></td>
             <td><span class="td-mono">${escapeHtml(item.sku)}</span></td>
             <td style="width:90px">
-              <input type="number" value="${item.quantity}" min="1"
-                style="width:72px;padding:5px 8px;font-size:13px"
-                onchange="updateOrderItemQty(${idx}, this.value)"
-                oninput="updateOrderItemQty(${idx}, this.value)" />
+              <input type="number" value="${item.quantity}" min="1" style="width:72px;padding:5px 8px;font-size:13px"
+                onchange="updateOrderItemQty(${idx},this.value)" oninput="updateOrderItemQty(${idx},this.value)" />
             </td>
             <td>${fmtCurrency(item.unitPrice)}</td>
             <td style="font-weight:700">${fmtCurrency(item.totalPrice)}</td>
             <td>
-              <button class="btn-icon" style="color:var(--danger)" onclick="removeOrderItem(${idx})" title="Remove">
+              <button class="btn-icon" style="color:var(--danger)" onclick="removeOrderItem(${idx})">
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="3 4 13 4"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M4 4l1 9h6l1-9"/></svg>
               </button>
             </td>
@@ -586,7 +623,6 @@ function renderOrderItems() {
 
 async function saveOrder() {
   if (!orderItems.length) { toast('Add at least one product', 'error'); return; }
-
   const type      = document.getElementById('of-type').value;
   const status    = document.getElementById('of-status').value;
   const party     = document.getElementById('of-party').value.trim();
@@ -594,18 +630,14 @@ async function saveOrder() {
   const notes     = document.getElementById('of-notes').value.trim();
 
   const data = {
-    type,
-    status,
-    notes,
-    reference,
+    type, status, notes, reference,
     items: orderItems.map(i => ({
       product:    i.product,
       quantity:   i.quantity,
       unitPrice:  i.unitPrice,
-      totalPrice: i.quantity * i.unitPrice  // recalculate cleanly
+      totalPrice: i.quantity * i.unitPrice
     }))
   };
-
   if (type === 'purchase')  data.supplier = party;
   else if (type === 'sale') data.customer = party;
 
@@ -614,14 +646,18 @@ async function saveOrder() {
 
   try {
     await api.createOrder(data);
-    toast('Order created successfully', 'success');
+    const stockMsg = status === 'completed' ? ' — stock updated!' : ' — stock pending until Completed';
+    toast('Order created' + stockMsg, 'success');
     closeModal();
     fetchOrders();
     fetchOrderStats();
   } catch (err) {
     toast(err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M2 8l4 4 8-8"/></svg> Create Order`; }
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M2 8l4 4 8-8"/></svg> Create Order`;
+    }
   }
 }
 
@@ -630,21 +666,22 @@ async function exportOrders() {
   try {
     toast('Preparing export…', 'info');
     const { orders } = await api.getOrders({ limit: 9999 });
-    const rows = [['Order #', 'Type', 'Status', 'Party', 'Items', 'Total', 'Reference', 'Notes', 'Date']];
+    const rows = [['Order #','Type','Status','Stock Applied','Party','Items','Total','Reference','Notes','Date']];
     orders.forEach(o => {
-      const party = o.supplier || o.customer || '';
       rows.push([
-        o.orderNumber, o.type, o.status, party,
+        o.orderNumber, o.type, o.status,
+        o.stockApplied ? 'Yes' : 'No',
+        o.supplier || o.customer || '',
         o.items.length, o.totalAmount,
         o.reference || '', o.notes || '',
         fmtDate(o.createdAt)
       ]);
     });
-    const csv  = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const csv  = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type:'text/csv' });
     const a    = document.createElement('a');
     a.href     = URL.createObjectURL(blob);
-    a.download = `orders_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `orders_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     toast(`Exported ${orders.length} orders`, 'success');

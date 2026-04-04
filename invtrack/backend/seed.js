@@ -64,20 +64,22 @@ async function seed() {
     const p0 = products[0]; // Headphones
     const p5 = products[5]; // SSD
 
+    // Completed orders → stockApplied: true (stock already reflected in product quantities above)
     await Order.create({
-      type: 'purchase', status: 'completed',
+      type: 'purchase', status: 'completed', stockApplied: true,
       supplier: 'AudioTech Inc',
       items: [{ product: p0._id, quantity: 50, unitPrice: 45, totalPrice: 2250 }],
       createdBy: admin._id
     });
     await Order.create({
-      type: 'sale', status: 'completed',
+      type: 'sale', status: 'completed', stockApplied: true,
       customer: 'Acme Corp',
       items: [{ product: p5._id, quantity: 10, unitPrice: 79.99, totalPrice: 799.90 }],
       createdBy: manager._id
     });
+    // Pending order → stockApplied: false (stock NOT yet changed)
     await Order.create({
-      type: 'purchase', status: 'pending',
+      type: 'purchase', status: 'pending', stockApplied: false,
       supplier: 'ConnectPro',
       items: [{ product: products[1]._id, quantity: 20, unitPrice: 15, totalPrice: 300 }],
       createdBy: manager._id

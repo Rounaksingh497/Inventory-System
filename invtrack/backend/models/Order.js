@@ -8,21 +8,30 @@ const orderItemSchema = new mongoose.Schema({
 });
 
 const orderSchema = new mongoose.Schema({
-  orderNumber: { type: String, unique: true },
-  type:        { type: String, enum: ['purchase', 'sale', 'adjustment'], required: true },
-  items:       [orderItemSchema],
-  totalAmount: { type: Number, default: 0 },
-  status:      { type: String, enum: ['pending', 'processing', 'completed', 'cancelled'], default: 'pending' },
-  notes:       { type: String, default: '' },
-  reference:   { type: String, default: '' },
-  supplier:    { type: String, default: '' },
-  customer:    { type: String, default: '' },
-  createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  orderNumber:  { type: String, unique: true },
+  type:         { type: String, enum: ['purchase', 'sale', 'adjustment'], required: true },
+  items:        [orderItemSchema],
+  totalAmount:  { type: Number, default: 0 },
+  status:       {
+    type:    String,
+    enum:    ['pending', 'processing', 'completed', 'cancelled'],
+    default: 'pending'
+  },
+  // Tracks whether stock has been applied for this order.
+  // Stock is ONLY applied when status becomes 'completed'.
+  // Reverted when status moves to 'cancelled' (if it was previously applied).
+  stockApplied: { type: Boolean, default: false },
+  notes:        { type: String, default: '' },
+  reference:    { type: String, default: '' },
+  supplier:     { type: String, default: '' },
+  customer:     { type: String, default: '' },
+  createdBy:    { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
+// Auto-generate order number and recalculate total before save
 orderSchema.pre('save', async function (next) {
   if (!this.orderNumber) {
-    const count = await mongoose.model('Order').countDocuments();
+    const count      = await mongoose.model('Order').countDocuments();
     this.orderNumber = `ORD-${String(count + 1).padStart(5, '0')}`;
   }
   this.totalAmount = this.items.reduce((sum, item) => sum + item.totalPrice, 0);
