@@ -1,11 +1,11 @@
 # InvTrack — Fullstack Inventory Management System
 
-A complete inventory management system built with **Node.js + Express + MongoDB + plain HTML/CSS/JS**.
+A complete inventory management system built with **Node.js + Express + MongoDB +  HTML/CSS/JS**.
 
 ## Tech Stack
 - **Backend**: Node.js, Express.js
 - **Database**: MongoDB (via Mongoose)
-- **Frontend**: Vanilla HTML, CSS, JavaScript
+- **Frontend**: HTML, CSS, JavaScript
 - **Auth**: JWT (JSON Web Tokens) + bcrypt
 
 ## Features
@@ -17,7 +17,7 @@ A complete inventory management system built with **Node.js + Express + MongoDB 
 
 ## Project Structure
 ```
-inventory-app/
+invtrack/
 ├── backend/
 │   ├── models/         # Mongoose models (User, Product, Category, Order)
 │   ├── routes/         # Express routes (auth, products, categories, orders, dashboard)
