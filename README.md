@@ -77,7 +77,7 @@ npm run dev
 ```
 
 ### 5. Open in browser
-Visit: **http://localhost:5000**
+Visit: **https://invtrack-vxb7.onrender.com/**
 
 ## API Endpoints
 
