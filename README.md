@@ -49,19 +49,7 @@ inventory-app/
 cd backend
 npm install
 ```
-
-### 2. Configure environment
-```bash
-cp .env.example .env
-```
-Edit `.env` and set your MongoDB URI:
-```
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/inventory_db
-JWT_SECRET=change_this_to_a_long_random_secret
-```
-
-### 3. Seed the database (optional but recommended)
+### 2. Seed the database (optional but recommended)
 ```bash
 npm run seed
 ```
@@ -69,14 +57,14 @@ This creates sample categories, products, and an admin account.
 
 **Demo credentials:** `admin@inventory.com` / `admin123`
 
-### 4. Start the server
+### 3. Start the server
 ```bash
 npm start
 # or for development with auto-reload:
 npm run dev
 ```
 
-### 5. Open in browser
+### 4. Open in browser
 Visit: **https://invtrack-vxb7.onrender.com/**
 
 ## API Endpoints
@@ -120,7 +108,5 @@ Visit: **https://invtrack-vxb7.onrender.com/**
 | GET | /api/dashboard/stats | Summary stats |
 
 ## Deployment Notes
-- Set `NODE_ENV=production` in your environment
-- Use a strong random `JWT_SECRET`
 - Use MongoDB Atlas for cloud database
 - Deploy to Railway, Render, Heroku, or any Node.js host
