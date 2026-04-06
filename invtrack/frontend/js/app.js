@@ -1,11 +1,11 @@
 // ─── STATE ────────────────────────────────────────────────────────────────────
-let currentUser    = null;
-let currentPage    = 'dashboard';
+let currentUser      = null;
+let currentPage      = 'dashboard';
 let sidebarCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
 
-// ─── INIT ────────────────────────────────────────────────────────────────────
+// ─── INIT ─────────────────────────────────────────────────────────────────────
 window.onload = async () => {
-  // Apply saved sidebar state
+  // Apply saved sidebar state immediately
   if (sidebarCollapsed) document.getElementById('sidebar')?.classList.add('collapsed');
 
   const token = getToken();
@@ -15,6 +15,7 @@ window.onload = async () => {
       localStorage.setItem('inv_user', JSON.stringify(currentUser));
       showApp();
     } catch {
+      // Token invalid or server error — go back to login
       clearToken();
       showAuth();
     }
@@ -23,6 +24,7 @@ window.onload = async () => {
   }
 };
 
+// ─── SHOW / HIDE SCREENS ──────────────────────────────────────────────────────
 function showApp() {
   document.getElementById('auth-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
@@ -44,7 +46,6 @@ function updateNavUser() {
   if (roleEl)   roleEl.textContent   = currentUser.role;
   if (avatarEl) avatarEl.textContent = currentUser.name.charAt(0).toUpperCase();
 
-  // Color avatar by role
   const roleStyles = {
     admin:   '',
     manager: 'background:var(--teal-soft);color:var(--teal)',
@@ -59,8 +60,8 @@ function switchAuthTab(tab) {
   const isLogin = tab === 'login';
   document.getElementById('tab-login')   .classList.toggle('active',  isLogin);
   document.getElementById('tab-register').classList.toggle('active', !isLogin);
-  document.getElementById('form-login')    .classList.toggle('hidden',  !isLogin);
-  document.getElementById('form-register') .classList.toggle('hidden',   isLogin);
+  document.getElementById('form-login')   .classList.toggle('hidden', !isLogin);
+  document.getElementById('form-register').classList.toggle('hidden',  isLogin);
   clearAuthMessages();
 }
 
@@ -73,11 +74,12 @@ function clearAuthMessages() {
 
 function showAuthError(msg) {
   const el = document.getElementById('auth-error');
-  el.textContent = msg; el.classList.remove('hidden');
+  if (el) { el.textContent = msg; el.classList.remove('hidden'); }
 }
+
 function showAuthSuccess(msg) {
   const el = document.getElementById('auth-success');
-  el.textContent = msg; el.classList.remove('hidden');
+  if (el) { el.textContent = msg; el.classList.remove('hidden'); }
 }
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
@@ -95,9 +97,9 @@ async function login() {
     return;
   }
 
-  btn.disabled = true;
+  btn.disabled         = true;
   spinner.classList.remove('hidden');
-  btnText.textContent = 'Signing in…';
+  btnText.textContent  = 'Signing in…';
 
   try {
     const { token, user } = await api.login(email, password);
@@ -110,7 +112,7 @@ async function login() {
     document.getElementById('login-password').value = '';
     document.getElementById('login-password').focus();
   } finally {
-    btn.disabled = false;
+    btn.disabled        = false;
     spinner.classList.add('hidden');
     btnText.textContent = 'Sign in';
   }
@@ -129,52 +131,52 @@ async function register() {
 
   clearAuthMessages();
 
-  if (!name)                        { showAuthError('Full name is required.');             return; }
-  if (!email)                       { showAuthError('Email address is required.');         return; }
-  if (!/\S+@\S+\.\S+/.test(email)) { showAuthError('Please enter a valid email address.'); return; }
+  if (!name)                        { showAuthError('Full name is required.');                  return; }
+  if (!email)                       { showAuthError('Email address is required.');              return; }
+  if (!/\S+@\S+\.\S+/.test(email)) { showAuthError('Please enter a valid email address.');     return; }
   if (password.length < 6)         { showAuthError('Password must be at least 6 characters.'); return; }
-  if (password !== confirm)        { showAuthError('Passwords do not match.');             return; }
+  if (password !== confirm)        { showAuthError('Passwords do not match.');                  return; }
 
-  btn.disabled = true;
+  btn.disabled        = true;
   spinner.classList.remove('hidden');
   btnText.textContent = 'Creating account…';
 
   try {
-    await api.register({ name, email, password, role });
-    // Clear register form
-    ['reg-name','reg-email','reg-password','reg-confirm'].forEach(id => {
-      document.getElementById(id).value = '';
-    });
-    showAuthSuccess(`Account created! You can now sign in as ${name}.`);
-    // Pre-fill login form and switch tab
-    document.getElementById('login-email').value = email;
-    setTimeout(() => {
-      switchAuthTab('login');
-      document.getElementById('login-password').focus();
-    }, 1200);
+    // Backend returns { token, user } on successful register
+    const { token, user } = await api.register({ name, email, password, role });
+
+    // Save token and user — log them straight in, no extra step needed
+    setToken(token);
+    currentUser = user;
+    localStorage.setItem('inv_user', JSON.stringify(user));
+
+    // Go directly into the app
+    showApp();
+    toast(`Welcome, ${user.name}! Your account has been created.`, 'success');
   } catch (err) {
     showAuthError(err.message || 'Registration failed. Please try again.');
   } finally {
-    btn.disabled = false;
+    btn.disabled        = false;
     spinner.classList.add('hidden');
     btnText.textContent = 'Create account';
   }
 }
 
+// ─── PASSWORD VISIBILITY TOGGLE ───────────────────────────────────────────────
 function togglePasswordVisibility(inputId, iconId) {
   const input = document.getElementById(inputId);
   const icon  = document.getElementById(iconId);
   if (!input || !icon) return;
   if (input.type === 'password') {
-    input.type = 'text';
+    input.type    = 'text';
     icon.innerHTML = `<path d="M1 8C2.5 4.5 5 3 8 3s5.5 1.5 7 5c-1.5 3.5-4 5-7 5s-5.5-1.5-7-5z"/><line x1="2" y1="2" x2="14" y2="14"/>`;
   } else {
-    input.type = 'password';
+    input.type    = 'password';
     icon.innerHTML = `<path d="M1 8C2.5 4.5 5 3 8 3s5.5 1.5 7 5c-1.5 3.5-4 5-7 5s-5.5-1.5-7-5z"/><circle cx="8" cy="8" r="2"/>`;
   }
 }
 
-// Enter key support
+// ─── KEYBOARD SHORTCUTS ───────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   const authVisible = !document.getElementById('auth-screen').classList.contains('hidden');
   if (e.key === 'Enter' && authVisible) {
@@ -184,77 +186,73 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
 
+// ─── LOGOUT ───────────────────────────────────────────────────────────────────
 function logout() {
   clearToken();
   currentUser = null;
   showAuth();
-  // Clear both forms
-  ['login-email','login-password'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
+  ['login-email', 'login-password'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
   });
   switchAuthTab('login');
-  toast('Signed out successfully');
+  clearAuthMessages();
 }
 
-// ─── SIDEBAR ─────────────────────────────────────────────────────────────────
+// ─── SIDEBAR ──────────────────────────────────────────────────────────────────
 function toggleSidebar() {
-  const sidebar = document.getElementById('sidebar');
+  const sidebar    = document.getElementById('sidebar');
   sidebarCollapsed = !sidebarCollapsed;
   sidebar.classList.toggle('collapsed', sidebarCollapsed);
   localStorage.setItem('sidebar_collapsed', sidebarCollapsed);
 }
 
-// ─── ROUTING ─────────────────────────────────────────────────────────────────
+// ─── ROUTING ──────────────────────────────────────────────────────────────────
 function navigate(page) {
-  // Hide all pages
   document.querySelectorAll('.page').forEach(p => {
     p.classList.remove('active');
     p.classList.add('hidden');
   });
-  // Deactivate all nav items
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-  // Show target page
   const el = document.getElementById(`page-${page}`);
   if (el) { el.classList.remove('hidden'); el.classList.add('active'); }
 
-  // Mark nav item active
   const nav = document.querySelector(`.nav-item[data-page="${page}"]`);
   if (nav) nav.classList.add('active');
 
   currentPage = page;
 
-  // Load page data
   const loaders = {
-    dashboard: loadDashboard,
-    inventory: loadInventory,
-    orders:    loadOrders,
-    categories:loadCategories
+    dashboard:  loadDashboard,
+    inventory:  loadInventory,
+    orders:     loadOrders,
+    categories: loadCategories
   };
   if (loaders[page]) loaders[page]();
 }
 
-// ─── MODAL ───────────────────────────────────────────────────────────────────
+// ─── MODAL ────────────────────────────────────────────────────────────────────
 function openModal(title, bodyHTML, wide = false) {
   const titleEl   = document.getElementById('modal-title');
   const bodyEl    = document.getElementById('modal-body');
   const overlayEl = document.getElementById('modal-overlay');
   const modalEl   = document.getElementById('modal');
 
-  if (titleEl) titleEl.textContent = title;
-  if (bodyEl)  bodyEl.innerHTML    = bodyHTML;
+  if (titleEl)   titleEl.textContent = title;
+  if (bodyEl)    bodyEl.innerHTML    = bodyHTML;
   if (overlayEl) overlayEl.classList.remove('hidden');
-  if (modalEl) modalEl.style.width = wide ? '700px' : '';
+  if (modalEl)   modalEl.style.width = wide ? '700px' : '';
 
-  // Focus first interactive element
   setTimeout(() => {
-    const first = modalEl?.querySelector('input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])');
+    const first = modalEl?.querySelector(
+      'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
+    );
     if (first) first.focus();
   }, 120);
 }
 
 function closeModal(e) {
-  // If called from overlay click, only close if clicking the overlay itself
   if (e && e.target !== document.getElementById('modal-overlay')) return;
   document.getElementById('modal-overlay')?.classList.add('hidden');
 }
@@ -284,7 +282,8 @@ function openSettingsModal() {
             <div style="font-weight:600;font-size:13px">Collapsed sidebar</div>
             <div style="font-size:11px;color:var(--text-3);margin-top:2px">Save screen space</div>
           </div>
-          <div class="toggle ${sidebarCollapsed ? 'on' : ''}" id="pref-sidebar-toggle" onclick="this.classList.toggle('on')"></div>
+          <div class="toggle ${sidebarCollapsed ? 'on' : ''}" id="pref-sidebar-toggle"
+            onclick="this.classList.toggle('on')"></div>
         </label>
       </div>
     </div>
@@ -295,7 +294,7 @@ function openSettingsModal() {
 }
 
 function saveSettings() {
-  const name       = document.getElementById('set-name')?.value.trim();
+  const name        = document.getElementById('set-name')?.value.trim();
   const sidebarPref = document.getElementById('pref-sidebar-toggle')?.classList.contains('on');
 
   if (name && currentUser) {
@@ -314,11 +313,11 @@ function saveSettings() {
   closeModal();
 }
 
-// ─── TOAST ───────────────────────────────────────────────────────────────────
+// ─── TOAST ────────────────────────────────────────────────────────────────────
 function toast(msg, type = '') {
   const container = document.getElementById('toast-container');
   if (!container) return;
-  const t = document.createElement('div');
+  const t       = document.createElement('div');
   t.className   = `toast ${type}`;
   t.textContent = msg;
   container.appendChild(t);
@@ -332,14 +331,15 @@ function toast(msg, type = '') {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function fmtCurrency(n) {
-  return '₹' + Number(n || 0).toLocaleString('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+  return '$' + Number(n || 0).toLocaleString('en-US', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2
   });
 }
 function fmtDate(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(d).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric'
+  });
 }
 function fmtDateTime(d) {
   if (!d) return '—';
@@ -382,24 +382,24 @@ function typeBadge(t) {
 
 function escapeHtml(s) {
   return String(s || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replace(/&/g,  '&amp;')
+    .replace(/</g,  '&lt;')
+    .replace(/>/g,  '&gt;')
+    .replace(/"/g,  '&quot;')
+    .replace(/'/g,  '&#039;');
 }
 
-// Update pending orders badge in sidebar nav
+// ─── PENDING ORDERS BADGE ─────────────────────────────────────────────────────
 async function updatePendingBadge() {
   try {
     const { total } = await api.getOrders({ status: 'pending', limit: 1 });
-    const badge = document.getElementById('pending-badge');
+    const badge     = document.getElementById('pending-badge');
     if (!badge) return;
     if (total > 0) {
-      badge.textContent     = total > 99 ? '99+' : total;
-      badge.style.display   = 'inline-flex';
+      badge.textContent   = total > 99 ? '99+' : total;
+      badge.style.display = 'inline-flex';
     } else {
-      badge.style.display   = 'none';
+      badge.style.display = 'none';
     }
   } catch {}
 }
